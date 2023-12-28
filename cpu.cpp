@@ -117,7 +117,7 @@ public:
 
     
 
-    void init() 
+    void init(Graphics &grhandlr) 
     {
         srand(time(0));
 
@@ -163,6 +163,22 @@ public:
     }
 
     void increment_pc()  { program_counter += 2; }
+
+    void executeFX_0A(uint16_t &current_opcode)
+    {
+        bool key_pressed = false;
+        for (int i = 0; i < 16; ++i)
+        {
+            if (keys[i] != 0)
+            {
+                registers[((current_opcode & 0x0F00) >> 8)] = static_cast<uint8_t>(i);
+                key_pressed = true;
+                break;
+            }
+        }
+        if (!key_pressed)
+            program_counter -= 2;
+        }
 
     void cycle() 
     {
@@ -226,7 +242,7 @@ public:
                     {
                         // 00FB: Scroll display 4 pixels right
                         const int scroll = 4;
-                        if(grhandlr.graphics_extended)
+                        if(grhandlr.extendedScreenMode)
                         {
                             for (int y = 0; y < 64; ++y)  
                             {
@@ -252,7 +268,7 @@ public:
                     {
                         // 00FC: Scroll display 4 pixels left
                         const int scroll = 4;
-                        if(grhandlr.graphics_extended)
+                        if(grhandlr.extendedScreenMode)
                         {
                             for (int y = 0; y < 64; ++y)  
                             {
@@ -280,6 +296,7 @@ public:
                     {
                         // 00FD: Exit the emulator
                         exit(0);
+                        break;
                     }
 
                     case 0x00FE:
@@ -333,7 +350,7 @@ public:
 
             case 0x5:
                 // Skip next instruction if Vx = Vy.
-                if((registers[(current_opcode & 0x0F00) >> 8] == registers[(current_opcode & 0x00FF) >> 4]))
+                if(registers[(current_opcode & 0x0F00) >> 8] == registers[(current_opcode & 0x00FF) >> 4])
                     increment_pc();  
                 increment_pc();
                 break;
@@ -418,6 +435,7 @@ public:
 
                     default:
                         throw "Unknown opcode within 0x8 cases in ALU!";
+                        break;
                 }
 
                 increment_pc();
@@ -450,6 +468,7 @@ public:
                 break;
             
             case 0xD:
+            {
                 
                 uint8_t x = registers[(current_opcode & 0x0F00) >> 8];
                 uint8_t y = registers[(current_opcode & 0x00F0) >> 4];
@@ -494,9 +513,10 @@ public:
                 }
                 increment_pc();
                 break;
-        
+            }
 
             case 0xE:
+            {
                 // Handle key input
                 if (current_opcode == 0x9E) 
                 {
@@ -510,45 +530,39 @@ public:
                     if (keys[key] != 1) 
                         increment_pc();
                 }
-
+                
                 break;
+            }
 
             case 0xF:
-
-                uint8_t x = ((current_opcode & 0x0F00) >> 8);
+            {
+                // cases of FX
 
                 switch(current_opcode & 0x00FF)
                 {
                     case 0x07:
-                        registers[x] = delay_timer;
+                        registers[((current_opcode & 0x0F00) >> 8)] = delay_timer;
                         break;
                     
                     case 0x0A:
-                        bool key_pressed = false;
-                        for (int i = 0; i < 16; ++i) 
-                        {
-                            if (keys[i] != 0) 
-                            {
-                                registers[x] = static_cast<uint8_t>(i);
-                                key_pressed = true;
-                                break;  
-                            }
-                        }
+                        executeFX_0A(current_opcode);
+                        break;
 
                     case 0x15:
-                        delay_timer = registers[x];
+                        delay_timer = registers[((current_opcode & 0x0F00) >> 8)];
                         break;
                     
                     case 0x18:
-                        sound_timer = registers[x];
+                        sound_timer = registers[((current_opcode & 0x0F00) >> 8)];
                         break;
                     
                     case 0x1E:
-                        index += registers[x];
+                        index += registers[((current_opcode & 0x0F00) >> 8)];
+                        index &= 0xFFF;  // Mask to prevent overflow
                         break;
                     
                     case 0x29:
-                        index += registers[x] * 0x5;
+                        index += registers[((current_opcode & 0x0F00) >> 8)] * 0x5;
                         break;
                     
                     case 0x30:
@@ -556,24 +570,26 @@ public:
                         break;
 
                     case 0x33:
-                        uint8_t value = registers[x];
+                    {
+                        uint8_t value = registers[((current_opcode & 0x0F00) >> 8)];
                         memory[index]     = value / 100;          // Hundreds digit
                         memory[index + 1] = (value / 10) % 10;    // Tens digit
                         memory[index + 2] = value % 10;           // Ones digit
                         break;
+                    }
                     
                     case 0x55:
-                        for(int i = 0; i < x; ++i)
+                        for(int i = 0; i < ((current_opcode & 0x0F00) >> 8); ++i)
                             memory[index + i] = registers[i];
                         break;
 
                     case 0x65:
-                        for(int i = 0; i < x; ++i)
+                        for(int i = 0; i < ((current_opcode & 0x0F00) >> 8); ++i)
                             registers[i] = memory[index + i];
                         break;
 
                     case 0x75:
-                        for (int i = 0; i <= x; ++i)
+                        for (int i = 0; i <= ((current_opcode & 0x0F00) >> 8); ++i)
                         {
                             // Save registers V0 to VX in RPL user flags
                             rpl_user_flags[i] = registers[i];
@@ -581,24 +597,23 @@ public:
                         break;
 
                     case 0x85:
-                        for (int i = 0; i <= x; ++i)
+                        for (int i = 0; i <= ((current_opcode & 0x0F00) >> 8); ++i)
                         {
                             // Read from RPL user flags and store in registers V0 to VX
                             registers[i] = rpl_user_flags[i];
                         }
-                        break;
+                        break;   
 
                     default:
-                        throw "Unknown opcode within 0xF cases in registers!";
+                        throw "Unknown opcode within 0x8 cases in ALU!";
+                        break;
 
-                    
+
                 }
-            
                 increment_pc();
                 break;
             
-            default:
-                throw "Unknown opcode within all cases in the CPU!";
+            }
 
         }
     }

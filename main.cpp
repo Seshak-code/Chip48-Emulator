@@ -1,11 +1,10 @@
 #include <iostream>
+#include <iostream>
 #include <chrono>
 #include <thread>
-#include <SDL2/SDL.h>
+#include </Users/seshak/Desktop/chip8/include/SDL2/SDL.h>
 #include <unordered_map>
 #include "cpu.cpp"
-#include <chrono>
-
 
 using namespace std;
 
@@ -48,7 +47,7 @@ public:
 
         cout << "Quitting SDL!" << endl;
         SDL_Quit();
-        cout << "CHIP8 Exiting!" << endl;
+        cout << "CHIP8 Exiting! 😵" << endl;
     }
 
     void clear_window()
@@ -81,6 +80,7 @@ private:
 int main() {
     Chip8Emulator emulator;
     Chip8 cpu;
+    Graphics grhandlr;
     //cout << __cplusplus << endl;
     bool running = true;
     int duration_ms = 16;
@@ -111,7 +111,7 @@ int main() {
         keymap[SDLK_0, 0x0]; 
         keymap[SDLK_ESCAPE, -1]; 
     
-    cpu.init();
+    cpu.init(grhandlr);
 
     for(int i = 0; i < 8; i++) 
         cpu.rpl_user_flags[i] = rand() & 0x3F;
