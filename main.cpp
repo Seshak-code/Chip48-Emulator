@@ -113,6 +113,9 @@ int main() {
     
     cpu.init();
 
+    for(int i = 0; i < 8; i++) 
+        cpu.rpl_user_flags[i] = rand() & 0x3F;
+
     while(running)
     {
         // Emulation Cycle
@@ -133,12 +136,12 @@ int main() {
                 
             }
 
-        emulator.clear_window();
+            emulator.clear_window();
 
-        // Build Texture
+            // Build Texture
 
-        emulator.copy_render();
-        emulator.present_render();
+            emulator.copy_render();
+            emulator.present_render();
 
             this_thread::sleep_for(duration);
 

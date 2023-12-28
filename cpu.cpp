@@ -11,6 +11,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <time.h>
+#include <random>
 
 
 
@@ -28,10 +29,17 @@ public:
 
     void clear()
     {
-        for (auto &g : graphics) 
-            g = 0x00;
-        for (auto &g : graphics_extended) 
-            g = 0x00;
+        // Clear Graphics dependent on flag
+        if(extendedScreenMode)
+        {
+            for (auto &g : graphics) 
+                g = 0x00;
+        }
+        else
+        {
+            for (auto &g : graphics_extended) 
+                g = 0x00;
+        }
     }
     
 };
@@ -60,6 +68,9 @@ public:
     // Stack and Stack Pointer
     uint16_t stack[32];
     uint16_t sp;
+
+    // Register flags
+    uint8_t rpl_user_flags[8];
 
     // Keys
     uint8_t keys[16];
@@ -106,7 +117,8 @@ public:
 
     
 
-    void init() {
+    void init() 
+    {
         srand(time(0));
 
         program_counter = 0x200;
@@ -138,7 +150,8 @@ public:
         }
 
         // Set fonts
-        for (int i = 0; i < 80; i++) {
+        for (int i = 0; i < 80; i++) 
+        {
             if(grhandlr.extendedScreenMode)
                 memory[i] = chip48_fontset[i];
             else
@@ -149,11 +162,10 @@ public:
         sound_timer = 0;
     }
 
-    void increment_pc() {
-        program_counter += 2;
-    }
+    void increment_pc()  { program_counter += 2; }
 
-    void cycle() {
+    void cycle() 
+    {
         if (program_counter > 0xFFF) {
             throw "OPcode out of range! Your program has an error!";
         }
@@ -321,7 +333,7 @@ public:
 
             case 0x5:
                 // Skip next instruction if Vx = Vy.
-                if((registers[(current_opcode & 0x0F00) >> 8] != registers[(current_opcode & 0x00FF) >> 4]))
+                if((registers[(current_opcode & 0x0F00) >> 8] == registers[(current_opcode & 0x00FF) >> 4]))
                     increment_pc();  
                 increment_pc();
                 break;
@@ -367,7 +379,7 @@ public:
 
                     case 0x4:
                         // 8XY4: Set Vx = Vx + Vy, set VF = carry
-                        if (static_cast<uint8_t>(registers[x]) + static_cast<uint8_t>(registers[y]) > 255)
+                        if (static_cast<uint8_t>(registers[x]) + static_cast<uint8_t>(registers[y]) > 255U)
                             registers[0xF] = 1;
                         else
                             registers[0xF] = 0;
@@ -377,9 +389,9 @@ public:
                     case 0x5:
                         // 8XY5: Set Vx = Vx - Vy, set VF = NOT borrow
                         if (registers[x] > registers[y])
-                            registers[0xF] = 0x1;
+                            registers[0xF] = 1;
                         else
-                            registers[0xF] = 0x0;
+                            registers[0xF] = 0;
                         registers[x] -= registers[y];
                         break;
 
@@ -413,13 +425,182 @@ public:
             }
 
             case 0x9:
+                // Skip next instruction if Vx != Vy.
+                if((registers[(current_opcode & 0x0F00) >> 8] != registers[(current_opcode & 0x00FF) >> 4]))
+                    increment_pc();  
+                increment_pc();
+                break;
 
+            case 0xA:
+                // Set I = nnn.
+                index = current_opcode & 0x0FFF;
+                increment_pc();
+                break;
 
+            case 0xB:
+                // Jump to location nnn + V0.
+                program_counter = registers[0] + static_cast<uint16_t>(current_opcode & 0x0FFF);
+                increment_pc();
+                break;
+            
+            case 0xC:
+                // Set Vx = random byte AND kk.
+	            registers[(current_opcode & 0x0F00) >> 8] = static_cast<uint8_t>(rand() & (current_opcode & 0x00FF));
+                increment_pc();
+                break;
+            
+            case 0xD:
+                
+                uint8_t x = registers[(current_opcode & 0x0F00) >> 8];
+                uint8_t y = registers[(current_opcode & 0x00F0) >> 4];
+                uint8_t height = current_opcode & 0x000F;
+
+                // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+                registers[0xF] = 0; // Reset VF for collision
+
+                for (int row = 0; row < height; ++row) 
+                {
+                    uint8_t spriteByte = memory[index + row];
+
+                    for (int col = 0; col < 8; ++col) {
+                        uint8_t pixelValue = (spriteByte >> (7 - col)) & 0x1;
+
+                        // Wrap if going beyond screen boundaries for extended and standard screen modes
+                        int dispX = (x + col) % (grhandlr.extendedScreenMode ? 128 : 64); 
+                        int dispY = (y + row) % (grhandlr.extendedScreenMode ? 64 : 32);
+
+                        // Handles Dxyn & Dxy0 cases for collision
+                        if (pixelValue == 1) 
+                        {
+                            if (grhandlr.extendedScreenMode) {
+                                // Handle extended screen mode
+                                // Update graphics_extended array
+                                int index = dispY * 128 + dispX;
+                                grhandlr.graphics_extended[index] ^= 1; 
+                                if (grhandlr.graphics_extended[index] == 0 && pixelValue == 1) 
+                                    registers[0xF] = 1; // Collision occurred
+
+                            } else {
+                                // Handle standard screen mode
+                                // Update graphics array
+                                int index = dispY * 64 + dispX;
+                                grhandlr.graphics[index] ^= 1;
+                                if (grhandlr.graphics[index] == 0 && pixelValue == 1) 
+                                    registers[0xF] = 1; // Collision occurred
+
+                            }
+                        }
+                    }
+                }
+                increment_pc();
+                break;
+        
+
+            case 0xE:
+                // Handle key input
+                if (current_opcode == 0x9E) 
+                {
+                    uint8_t key = registers[(current_opcode & 0x0F00) >> 8];
+                    if (keys[key] == 1) 
+                        increment_pc();
+                } 
+                else if (current_opcode == 0xA1) 
+                {
+                    uint8_t key = registers[(current_opcode & 0x0F00) >> 8];
+                    if (keys[key] != 1) 
+                        increment_pc();
+                }
+
+                break;
+
+            case 0xF:
+
+                uint8_t x = ((current_opcode & 0x0F00) >> 8);
+
+                switch(current_opcode & 0x00FF)
+                {
+                    case 0x07:
+                        registers[x] = delay_timer;
+                        break;
+                    
+                    case 0x0A:
+                        bool key_pressed = false;
+                        for (int i = 0; i < 16; ++i) 
+                        {
+                            if (keys[i] != 0) 
+                            {
+                                registers[x] = static_cast<uint8_t>(i);
+                                key_pressed = true;
+                                break;  
+                            }
+                        }
+
+                    case 0x15:
+                        delay_timer = registers[x];
+                        break;
+                    
+                    case 0x18:
+                        sound_timer = registers[x];
+                        break;
+                    
+                    case 0x1E:
+                        index += registers[x];
+                        break;
+                    
+                    case 0x29:
+                        index += registers[x] * 0x5;
+                        break;
+                    
+                    case 0x30:
+                        index = registers[(current_opcode & 0x0F00) >> 8] * 5;
+                        break;
+
+                    case 0x33:
+                        uint8_t value = registers[x];
+                        memory[index]     = value / 100;          // Hundreds digit
+                        memory[index + 1] = (value / 10) % 10;    // Tens digit
+                        memory[index + 2] = value % 10;           // Ones digit
+                        break;
+                    
+                    case 0x55:
+                        for(int i = 0; i < x; ++i)
+                            memory[index + i] = registers[i];
+                        break;
+
+                    case 0x65:
+                        for(int i = 0; i < x; ++i)
+                            registers[i] = memory[index + i];
+                        break;
+
+                    case 0x75:
+                        for (int i = 0; i <= x; ++i)
+                        {
+                            // Save registers V0 to VX in RPL user flags
+                            rpl_user_flags[i] = registers[i];
+                        }
+                        break;
+
+                    case 0x85:
+                        for (int i = 0; i <= x; ++i)
+                        {
+                            // Read from RPL user flags and store in registers V0 to VX
+                            registers[i] = rpl_user_flags[i];
+                        }
+                        break;
+
+                    default:
+                        throw "Unknown opcode within 0xF cases in registers!";
+
+                    
+                }
+            
+                increment_pc();
+                break;
+            
+            default:
+                throw "Unknown opcode within all cases in the CPU!";
 
         }
-
-
-
     }
 };
 
