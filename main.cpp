@@ -1,10 +1,11 @@
-#include <iostream>
+#include <fstream>
 #include <iostream>
 #include <chrono>
 #include <thread>
 #include </Users/seshak/Desktop/chip8/include/SDL2/SDL.h>
 #include <unordered_map>
 #include "cpu.cpp"
+#include <vector>
 
 using namespace std;
 
@@ -77,15 +78,59 @@ private:
 
 };
 
-int main() {
-    Chip8Emulator emulator;
-    Chip8 cpu;
-    Graphics grhandlr;
-    //cout << __cplusplus << endl;
-    bool running = true;
-    int duration_ms = 16;
-    auto duration = chrono::milliseconds(duration_ms);
+void loadROM(const char* filename, Chip8 &cpu) {
+    std::ifstream rom(filename, std::ios::binary);
 
+    if (rom.is_open()) {
+        rom.seekg(0, std::ios::end);
+        std::streampos size = rom.tellg();
+        rom.seekg(0, std::ios::beg);
+
+        cout << "Loading ROM: " << filename << endl;
+        if (size > 0 && size <= 0xFFFE00) {
+            // Read the ROM directly into Chip-8 memory starting from 0x200
+            rom.read(reinterpret_cast<char*>(&cpu.memory[0x200]), size);
+        }
+
+        rom.close();
+    }
+}
+
+
+
+// void loadROM(char const* filename, Chip8& cpu)
+// {
+// 	// Open the file as a stream of binary and move the file pointer to the end
+// 	std::ifstream file(filename, std::ios::binary | std::ios::ate);
+
+// 	if (file.is_open())
+// 	{
+// 		// Get size of file and allocate a buffer to hold the contents
+// 		std::streampos size = file.tellg();
+// 		char* buffer = new char[size];
+
+// 		// Go back to the beginning of the file and fill the buffer
+// 		file.seekg(0, std::ios::beg);
+// 		file.read(buffer, size);
+// 		file.close();
+
+// 		// Load the ROM contents into the Chip8's memory, starting at 0x200
+// 		for (long i = 0; i < size; ++i)
+// 		{
+// 			cpu.memory[0x200 + i] = buffer[i];
+// 		}
+
+        
+
+// 		// Free the buffer
+// 		delete[] buffer;
+// 	}
+// }
+
+
+
+int main() 
+{
     unordered_map<int, int> keymap;
         keymap[SDLK_1, 0x1];
         keymap[SDLK_2, 0x2]; 
@@ -110,17 +155,38 @@ int main() {
         keymap[SDLK_9, 0x9]; 
         keymap[SDLK_0, 0x0]; 
         keymap[SDLK_ESCAPE, -1]; 
+
+    Chip8Emulator emulator;
+    Chip8 cpu;
+    Graphics grhandlr;
+    //cout << __cplusplus << endl;
+    bool running = true;
+    int duration_ms = 16;
+    auto duration = chrono::milliseconds(duration_ms);
+
     
     cpu.init(grhandlr);
+    cout << "init functions ran" << endl;
 
     for(int i = 0; i < 8; i++) 
         cpu.rpl_user_flags[i] = rand() & 0x3F;
 
+
+
+    loadROM("/Users/seshak/Desktop/chip8/Blitz [David Winter].ch8", cpu);
+    cout << "Emulator cycle begins" << endl;
     while(running)
     {
-        // Emulation Cycle
+        
+        char hex_string[20];
+        sprintf(hex_string, "%X", cpu.current_opcode); //convert number to hex
+        cout << "debugging message: 0x" << hex_string << endl; 
+        
 
+        // Emulation Cycle
         SDL_Event event;
+        cpu.cycle();
+        
         while( SDL_PollEvent(&event) > 0 )
         {
             switch(event.type)

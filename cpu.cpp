@@ -183,7 +183,8 @@ public:
     void cycle() 
     {
         if (program_counter > 0xFFF) {
-            throw "OPcode out of range! Your program has an error!";
+            std::cout << "OPcode out of range! Your program has an error!";
+            exit(0);
         }
 
         current_opcode = static_cast<uint16_t>(memory[program_counter]) << 8 | memory[program_counter + 1];
@@ -229,11 +230,14 @@ public:
                     case 0x000E:
                     {
                         // 000E: Return from a subroutine
-                        if (sp > 0) {
+                        if (sp > 0) 
+                        {
                             --sp;
                             program_counter = stack[sp];
-                        } else {
-                            throw "Stack underflow! Your program has an error!";
+                        } else 
+                        {
+                            std::cout << "Stack underflow! Your program has an error!" << std::endl;
+                            exit(0);
                         }
                         break;
                     }
@@ -314,8 +318,11 @@ public:
                     }
 
                     default:
-                        throw "OPcode is unknown, Your program has an error!";
+                    {
+                        std::cout << "OPcode is unknown, Your program has an error!" << std::endl;
+                        exit(0);
                         break;
+                    }
                     
                 }
                 increment_pc();
@@ -434,8 +441,11 @@ public:
                         break;
 
                     default:
-                        throw "Unknown opcode within 0x8 cases in ALU!";
+                    {
+                        std::cout << "Unknown opcode within 0x8 cases in ALU!" << std::endl;
+                        exit(0);
                         break;
+                    }
                 }
 
                 increment_pc();
@@ -605,8 +615,11 @@ public:
                         break;   
 
                     default:
-                        throw "Unknown opcode within 0x8 cases in ALU!";
+                    {   
+                        std::cout<< "Unknown opcode within 0x8 cases in ALU!" << std::endl;
+                        exit(0);
                         break;
+                    }
 
 
                 }
