@@ -4,8 +4,7 @@
 #define DEBUG_MSG(str) do { } while ( false )
 #endif
 
-//#define EXTENDED (128 * 64)
-//#define STANDARD (64 * 32)
+
 
 
 #include <iostream>
@@ -77,22 +76,22 @@ public:
 
     uint8_t chip8_fontset[80] = 
     {
-        0x60, 0xA0, 0xA0, 0xA0, 0xC0, // 0
-        0x40, 0xC0, 0x40, 0x40, 0xE0, // 1
-        0xC0, 0x20, 0x40, 0x80, 0xE0, // 2
-        0xC0, 0x20, 0x40, 0x20, 0xC0, // 3
-        0x20, 0xA0, 0xE0, 0x20, 0x20, // 4
-        0xE0, 0x80, 0xC0, 0x20, 0xC0, // 5
-        0x40, 0x80, 0xC0, 0xA0, 0x40, // 6
-        0xE0, 0x20, 0x60, 0x40, 0x40, // 7
-        0x40, 0xA0, 0x40, 0xA0, 0x40, // 8
-        0x40, 0xA0, 0x60, 0x20, 0x40, // 9
-        0x40, 0xA0, 0xE0, 0xA0, 0xA0, // A
-        0xC0, 0xA0, 0xC0, 0xA0, 0xC0, // B
-        0x60, 0x80, 0x80, 0x80, 0x60, // C
-        0xC0, 0xA0, 0xA0, 0xA0, 0xC0, // D
-        0xE0, 0x80, 0xC0, 0x80, 0xE0, // E
-        0xE0, 0x80, 0xC0, 0x80, 0x80  // F
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80, // F
     };
 
     uint16_t chip48_fontset[80] = 
@@ -227,7 +226,7 @@ public:
                         grhandlr.clear();                        
                         break;
 
-                    case 0x000E:
+                    case 0x00EE:
                     {
                         // 000E: Return from a subroutine
                         if (sp > 0) 
@@ -319,8 +318,8 @@ public:
 
                     default:
                     {
-                        std::cout << "OPcode is unknown, Your program has an error!" << std::endl;
-                        exit(0);
+                        std::cout << "OPcode, 0x" << current_opcode << " is unknown, Your program has an error!" << std::endl;
+                        //exit(0);
                         break;
                     }
                     
@@ -331,6 +330,9 @@ public:
             case 0x1:
                 // Jump to location nnn.
                 program_counter = current_opcode & 0x0FFF;
+                char hex_string[20];
+                sprintf(hex_string, "%X", current_opcode);
+                std::cout << "Debug: Jumps to " << hex_string << std::endl;
                 increment_pc();
                 break;
 
@@ -479,13 +481,13 @@ public:
             
             case 0xD:
             {
-                
+                // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+                registers[0xF] = 0; // Reset VF for collision
+
                 uint8_t x = registers[(current_opcode & 0x0F00) >> 8];
                 uint8_t y = registers[(current_opcode & 0x00F0) >> 4];
                 uint8_t height = current_opcode & 0x000F;
 
-                // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
-                registers[0xF] = 0; // Reset VF for collision
 
                 for (int row = 0; row < height; ++row) 
                 {
@@ -501,7 +503,8 @@ public:
                         // Handles Dxyn & Dxy0 cases for collision
                         if (pixelValue == 1) 
                         {
-                            if (grhandlr.extendedScreenMode) {
+                            if (grhandlr.extendedScreenMode) 
+                            {
                                 // Handle extended screen mode
                                 // Update graphics_extended array
                                 int index = dispY * 128 + dispX;
@@ -509,7 +512,9 @@ public:
                                 if (grhandlr.graphics_extended[index] == 0 && pixelValue == 1) 
                                     registers[0xF] = 1; // Collision occurred
 
-                            } else {
+                            } 
+                            else 
+                            {
                                 // Handle standard screen mode
                                 // Update graphics array
                                 int index = dispY * 64 + dispX;
@@ -616,7 +621,7 @@ public:
 
                     default:
                     {   
-                        std::cout<< "Unknown opcode within 0x8 cases in ALU!" << std::endl;
+                        std::cout<< "Unknown opcode within 0xF cases in ALU!" << std::endl;
                         exit(0);
                         break;
                     }
