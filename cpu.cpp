@@ -13,38 +13,11 @@
 #include <random>
 
 
-
-class Graphics {
-public:
-
-    
-    uint8_t graphics[64 * 32];
-    uint8_t graphics_extended[128 * 64];
-    
-    bool extendedScreenMode;
-
-    Graphics() : extendedScreenMode(false)
-    {  };
-
-    void clear()
-    {
-        // Clear Graphics dependent on flag
-        if(extendedScreenMode)
-        {
-            for (auto &g : graphics) 
-                g = 0x00;
-        }
-        else
-        {
-            for (auto &g : graphics_extended) 
-                g = 0x00;
-        }
-    }
-    
-};
-
 class Chip8 {
 public:
+
+    
+
     // Current Operation Code
     uint16_t current_opcode;
 
@@ -52,7 +25,8 @@ public:
     uint8_t memory[4096];
 
     // Graphics
-    Graphics grhandlr;
+    uint8_t graphics[64 * 32];
+    uint8_t graphics_extended[128 * 64];
 
     // 16 Registers V0-VF
     uint8_t registers[16];
@@ -76,49 +50,65 @@ public:
 
     uint8_t chip8_fontset[80] = 
     {
-    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-    0x20, 0x60, 0x20, 0x20, 0x70, // 1
-    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-    0xF0, 0x80, 0xF0, 0x80, 0x80, // F
+    0x60, 0xA0, 0xA0, 0xA0, 0xC0, // 0
+    0x40, 0xC0, 0x40, 0x40, 0xE0, // 1
+    0xC0, 0x20, 0x40, 0x80, 0xE0, // 2
+    0xC0, 0x20, 0x40, 0x20, 0xC0, // 3
+    0x20, 0xA0, 0xE0, 0x20, 0x20, // 4
+    0xE0, 0x80, 0xC0, 0x20, 0xC0, // 5
+    0x40, 0x80, 0xC0, 0xA0, 0x40, // 6
+    0xE0, 0x20, 0x60, 0x40, 0x40, // 7
+    0x40, 0xA0, 0x40, 0xA0, 0x40, // 8
+    0x40, 0xA0, 0x60, 0x20, 0x40, // 9
+    0x40, 0xA0, 0xE0, 0xA0, 0xA0, // A
+    0xC0, 0xA0, 0xC0, 0xA0, 0xC0, // B
+    0x60, 0x80, 0x80, 0x80, 0x60, // C
+    0xC0, 0xA0, 0xA0, 0xA0, 0xC0, // D
+    0xE0, 0x80, 0xC0, 0x80, 0xE0, // E
+    0xE0, 0x80, 0xC0, 0x80, 0x80  // F
     };
 
     uint16_t chip48_fontset[80] = 
     {
-        0xC67C, 0xDECE, 0xF6D6, 0xC6E6, 0x007C, // 0
-        0x3010, 0x30F0, 0x3030, 0x3030, 0x00FC, // 1
-        0xCC78, 0x0CCC, 0x3018, 0xCC60, 0x00FC, // 2
-        0xCC78, 0x0C0C, 0x0C38, 0xCC0C, 0x0078, // 3
-        0x1C0C, 0x6C3C, 0xFECC, 0x0C0C, 0x001E, // 4
-        0xC0FC, 0xC0C0, 0x0CF8, 0xCC0C, 0x0078, // 5
-        0x6038, 0xC0C0, 0xCCF8, 0xCCCC, 0x0078, // 6
-        0xC6FE, 0x06C6, 0x180C, 0x3030, 0x0030, // 7
-        0xCC78, 0xECCC, 0xDC78, 0xCCCC, 0x0078, // 8
-        0xC67C, 0xC6C6, 0x0C7E, 0x3018, 0x0070, // 9
-        0x7830, 0xCCCC, 0xFCCC, 0xCCCC, 0x00CC, // A
-        0x66FC, 0x6666, 0x667C, 0x6666, 0x00FC, // B
-        0x663C, 0xC0C6, 0xC0C0, 0x66C6, 0x003C, // C
-        0x6CF8, 0x6666, 0x6666, 0x6C66, 0x00F8, // D
-        0x62FE, 0x6460, 0x647C, 0x6260, 0x00FE, // E
-        0x66FE, 0x6462, 0x647C, 0x6060, 0x00F0  // F
+    0xC67C, 0xDECE, 0xF6D6, 0xC6E6, 0x007C, // 0
+    0x3010, 0x30F0, 0x3030, 0x3030, 0x00FC, // 1
+    0xCC78, 0x0CCC, 0x3018, 0xCC60, 0x00FC, // 2
+    0xCC78, 0x0C0C, 0x0C38, 0xCC0C, 0x0078, // 3
+    0x1C0C, 0x6C3C, 0xFECC, 0x0C0C, 0x001E, // 4
+    0xC0FC, 0xC0C0, 0x0CF8, 0xCC0C, 0x0078, // 5
+    0x6038, 0xC0C0, 0xCCF8, 0xCCCC, 0x0078, // 6
+    0xC6FE, 0x06C6, 0x180C, 0x3030, 0x0030, // 7
+    0xCC78, 0xECCC, 0xDC78, 0xCCCC, 0x0078, // 8
+    0xC67C, 0xC6C6, 0x0C7E, 0x3018, 0x0070, // 9
+    0x7830, 0xCCCC, 0xFCCC, 0xCCCC, 0x00CC, // A
+    0x66FC, 0x6666, 0x667C, 0x6666, 0x00FC, // B
+    0x663C, 0xC0C6, 0xC0C0, 0x66C6, 0x003C, // C
+    0x6CF8, 0x6666, 0x6666, 0x6C66, 0x00F8, // D
+    0x62FE, 0x6460, 0x647C, 0x6260, 0x00FE, // E
+    0x66FE, 0x6462, 0x647C, 0x6060, 0x00F0  // F
     };
 
-    
 
-    void init(Graphics &grhandlr) 
+    bool extendedScreenMode = false;
+
+    void clear()
     {
-        srand(time(0));
+        // Clear Graphics dependent on flag
+        if(extendedScreenMode)
+        {
+            for (auto &g : graphics) 
+                g = 0x00;
+        }
+        else
+        {
+            for (auto &g : graphics_extended) 
+                g = 0x00;
+        }
+    }
+
+    void init() 
+    {
+        srand(time(NULL));
 
         program_counter = 0x200;
         current_opcode = 0x00;
@@ -126,7 +116,7 @@ public:
         sp = 0x00;
 
         // Clear display
-        grhandlr.clear();
+        clear();
 
         // Clear stack
         for (auto &s : stack) {
@@ -151,7 +141,7 @@ public:
         // Set fonts
         for (int i = 0; i < 80; i++) 
         {
-            if(grhandlr.extendedScreenMode)
+            if(extendedScreenMode)
                 memory[i] = chip48_fontset[i];
             else
                 memory[i] = chip8_fontset[i];
@@ -187,7 +177,6 @@ public:
         }
 
         current_opcode = static_cast<uint16_t>(memory[program_counter]) << 8 | memory[program_counter + 1];
-
         // X000
         uint16_t first = current_opcode >> 12;
         switch (first)
@@ -196,34 +185,38 @@ public:
                 //DEBUG_MSG("SYS INSTR!\n" << first);
                 switch(current_opcode)
                 {
+                    case 0x0:
+                        program_counter -= 2;
+                        break;
+                    
                     case 0x00C:
                     {
                         // 00CN: Scroll display N lines down
                         uint8_t N = current_opcode & 0x000F;
-                        if(grhandlr.extendedScreenMode)
+                        if(extendedScreenMode)
                         {
                             for (int y = 31; y >= N; --y)
                                 for (int x = 0; x < 128; ++x)  // Adjusted for extended display mode
-                                    grhandlr.graphics_extended[y * 128 + x] = grhandlr.graphics_extended[(y - N) * 128 + x];
+                                    graphics_extended[y * 128 + x] = graphics_extended[(y - N) * 128 + x];
                             for (int y = 0; y < N; ++y)
                                 for (int x = 0; x < 128; ++x)  // Adjusted for extended display mode
-                                    grhandlr.graphics_extended[y * 128 + x] = 0;
+                                    graphics_extended[y * 128 + x] = 0;
                         }
                         else
                         {
                             for (int y = 31; y >= N; --y)
                                 for (int x = 0; x < 64; ++x)
-                                    grhandlr.graphics[y * 64 + x] = grhandlr.graphics[(y - N) * 64 + x];
+                                    graphics[y * 64 + x] = graphics[(y - N) * 64 + x];
                             for (int y = 0; y < N; ++y)
                                 for (int x = 0; x < 64; ++x)
-                                    grhandlr.graphics[y * 64 + x] = 0;
+                                    graphics[y * 64 + x] = 0;
                         }
                         break;
                     }
 
                     case 0x00E0:
                         //Clear the display.
-                        grhandlr.clear();                        
+                        clear();                        
                         break;
 
                     case 0x00EE:
@@ -245,23 +238,23 @@ public:
                     {
                         // 00FB: Scroll display 4 pixels right
                         const int scroll = 4;
-                        if(grhandlr.extendedScreenMode)
+                        if(extendedScreenMode)
                         {
                             for (int y = 0; y < 64; ++y)  
                             {
                                 for (int x = 127; x >= scroll; --x)  
-                                    grhandlr.graphics_extended[y * 128 + x] = grhandlr.graphics_extended[y * 128 + x - scroll];
+                                    graphics_extended[y * 128 + x] = graphics_extended[y * 128 + x - scroll];
                                 for (int x = 0; x < scroll; ++x)  
-                                    grhandlr.graphics_extended[y * 128 + x] = 0;
+                                    graphics_extended[y * 128 + x] = 0;
                             }
                         }
                         else{
                             for (int y = 0; y < 32; ++y) 
                             {
                                 for (int x = 63; x >= scroll; --x) 
-                                    grhandlr.graphics[y * 64 + x] = grhandlr.graphics[y * 64 + x - scroll];
+                                    graphics[y * 64 + x] = graphics[y * 64 + x - scroll];
                                 for (int x = 0; x < scroll; ++x) 
-                                    grhandlr.graphics[y * 64 + x] = 0;
+                                    graphics[y * 64 + x] = 0;
                             }
                         }
                         break;
@@ -271,25 +264,25 @@ public:
                     {
                         // 00FC: Scroll display 4 pixels left
                         const int scroll = 4;
-                        if(grhandlr.extendedScreenMode)
+                        if(extendedScreenMode)
                         {
                             for (int y = 0; y < 64; ++y)  
                             {
                                 for (int x = 0; x <= 127 - scroll; ++x)  
-                                    grhandlr.graphics_extended[y * 128 + x] = grhandlr.graphics_extended[y * 128 + x + scroll];
+                                    graphics_extended[y * 128 + x] = graphics_extended[y * 128 + x + scroll];
 
                                 for (int x = 128 - scroll; x < 128; ++x)  
-                                    grhandlr.graphics_extended[y * 128 + x] = 0;
+                                    graphics_extended[y * 128 + x] = 0;
                             }
                         }
                         else{
                             for (int y = 0; y < 32; ++y) 
                             {
                                 for (int x = 0; x < 64 - scroll; ++x) 
-                                    grhandlr.graphics[y * 64 + x] = grhandlr.graphics[y * 64 + x + scroll];
+                                    graphics[y * 64 + x] = graphics[y * 64 + x + scroll];
                                 
                                 for (int x = 64 - scroll; x < 64; ++x) 
-                                    grhandlr.graphics[y * 64 + x] = 0;
+                                    graphics[y * 64 + x] = 0;
                             }
                         }
                         break;
@@ -305,21 +298,21 @@ public:
                     case 0x00FE:
                     {
                         // 00FE: Disable extended screen mode
-                        grhandlr.extendedScreenMode = false;
+                        extendedScreenMode = false;
                         break;
                     }
 
                     case 0x00FF:
                     {
                         // 00FF: Enable extended screen mode
-                        grhandlr.extendedScreenMode = true;
+                        extendedScreenMode = true;
                         break;
                     }
 
                     default:
                     {
                         std::cout << "OPcode, 0x" << current_opcode << " is unknown, Your program has an error!" << std::endl;
-                        //exit(0);
+                        exit(0);
                         break;
                     }
                     
@@ -329,10 +322,16 @@ public:
 
             case 0x1:
                 // Jump to location nnn.
-                program_counter = current_opcode & 0x0FFF;
+                std::cout << "Debug: Before JP addr - PC: " << program_counter << std::endl;
+                program_counter = (current_opcode & 0x0FFF);
+                
+
+                // Debug: Print the opcode in hex
                 char hex_string[20];
                 sprintf(hex_string, "%X", current_opcode);
                 std::cout << "Debug: Jumps to " << hex_string << std::endl;
+                std::cout << "Debug: After JP addr - PC: " << program_counter << std::endl;
+
                 increment_pc();
                 break;
 
@@ -497,19 +496,19 @@ public:
                         uint8_t pixelValue = (spriteByte >> (7 - col)) & 0x1;
 
                         // Wrap if going beyond screen boundaries for extended and standard screen modes
-                        int dispX = (x + col) % (grhandlr.extendedScreenMode ? 128 : 64); 
-                        int dispY = (y + row) % (grhandlr.extendedScreenMode ? 64 : 32);
+                        int dispX = (x + col) % (extendedScreenMode ? 128 : 64); 
+                        int dispY = (y + row) % (extendedScreenMode ? 64 : 32);
 
                         // Handles Dxyn & Dxy0 cases for collision
                         if (pixelValue == 1) 
                         {
-                            if (grhandlr.extendedScreenMode) 
+                            if (extendedScreenMode) 
                             {
                                 // Handle extended screen mode
                                 // Update graphics_extended array
                                 int index = dispY * 128 + dispX;
-                                grhandlr.graphics_extended[index] ^= 1; 
-                                if (grhandlr.graphics_extended[index] == 0 && pixelValue == 1) 
+                                graphics_extended[index] ^= 1; 
+                                if (graphics_extended[index] == 0 && pixelValue == 1) 
                                     registers[0xF] = 1; // Collision occurred
 
                             } 
@@ -518,8 +517,8 @@ public:
                                 // Handle standard screen mode
                                 // Update graphics array
                                 int index = dispY * 64 + dispX;
-                                grhandlr.graphics[index] ^= 1;
-                                if (grhandlr.graphics[index] == 0 && pixelValue == 1) 
+                                graphics[index] ^= 1;
+                                if (graphics[index] == 0 && pixelValue == 1) 
                                     registers[0xF] = 1; // Collision occurred
 
                             }
@@ -634,6 +633,12 @@ public:
             }
 
         }
+
+        if (delay_timer > 0) 
+            delay_timer -= 1;
+
+        if (sound_timer > 0) 
+            sound_timer -= 1;
     }
 };
 

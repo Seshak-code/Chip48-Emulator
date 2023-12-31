@@ -80,7 +80,7 @@ private:
 
     void create_window()
     {
-        window = SDL_CreateWindow("CHIP8 Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 320, SDL_WINDOW_SHOWN);
+        window = SDL_CreateWindow("CHIP8 Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1024, 512, SDL_WINDOW_SHOWN);
     }
 
 };
@@ -104,7 +104,7 @@ void loadROM(const char* filename, Chip8 &cpu)  // Implement file opener
     }
 }
 
-void buildTexture(Chip8Emulator &emulator, Chip8 &cpu, Graphics &grhandlr)
+void buildTexture(Chip8Emulator &emulator, Chip8 &cpu)
 {
     uint32_t* bytes = nullptr;
     int pitch = 0;
@@ -113,12 +113,12 @@ void buildTexture(Chip8Emulator &emulator, Chip8 &cpu, Graphics &grhandlr)
 
         //cout << "is it locked in" << endl;
 
-        if(!(grhandlr.extendedScreenMode))
+        if(!(cpu.extendedScreenMode))
         {
             //cout << "chip8" << endl;
             for (size_t y = 0; y < 32; ++y) {  // Update for CHIP-8 resolution
                 for (size_t x = 0; x < 64; ++x) {  // Update for CHIP-8 resolution
-                    bytes[y * 64 + x] = (grhandlr.graphics[y * 64 + x] == 1) ? 0xFFFFFFFF : 0x000000FF;
+                    bytes[y * 64 + x] = (cpu.graphics[y * 64 + x] == 1) ? 0xFFFFFFFF : 0x000000FF;
                 }
             }
         }
@@ -127,7 +127,7 @@ void buildTexture(Chip8Emulator &emulator, Chip8 &cpu, Graphics &grhandlr)
             cout << "chip48" << endl;
             for (size_t y = 0; y < 64; ++y) {  // Update for Super CHIP-48 resolution
                 for (size_t x = 0; x < 128; ++x) {  // Update for Super CHIP-48 resolution
-                    bytes[y * 128 + x] = (grhandlr.graphics_extended[y * 128 + x] == 1) ? 0xFFFFFFFF : 0x000000FF;
+                    bytes[y * 128 + x] = (cpu.graphics_extended[y * 128 + x] == 1) ? 0xFFFFFFFF : 0x000000FF;
                 }
             }
         }
@@ -160,41 +160,18 @@ const array<int, 16> keymap = {{
 
 int main() 
 {
-    // unordered_map<int, int> keymap;
-    //     keymap[SDLK_1, 0x1];
-    //     keymap[SDLK_2, 0x2]; 
-    //     keymap[SDLK_3, 0x3]; 
-    //     keymap[SDLK_4, 0xC];
-    //     keymap[SDLK_q, 0x4]; 
-    //     keymap[SDLK_w, 0x5]; 
-    //     keymap[SDLK_e, 0x6]; 
-    //     keymap[SDLK_r, 0xD];
-    //     keymap[SDLK_a, 0x7]; 
-    //     keymap[SDLK_s, 0x8]; 
-    //     keymap[SDLK_d, 0x9]; 
-    //     keymap[SDLK_f, 0xE];
-    //     keymap[SDLK_z, 0xA]; 
-    //     keymap[SDLK_x, 0x0]; 
-    //     keymap[SDLK_c, 0xB]; 
-    //     keymap[SDLK_v, 0xF];
-    //     keymap[SDLK_5, 0x5]; 
-    //     keymap[SDLK_6, 0x6]; 
-    //     keymap[SDLK_7, 0x7];
-    //     keymap[SDLK_8, 0x8]; 
-    //     keymap[SDLK_9, 0x9]; 
-    //     keymap[SDLK_0, 0x0]; 
-    //     keymap[SDLK_ESCAPE, -1]; 
+
 
     Chip8Emulator emulator;
     Chip8 cpu;
-    Graphics grhandlr;
+
     //cout << __cplusplus << endl;
     bool running = true;
     int duration_ms = 16;
     auto duration = chrono::milliseconds(duration_ms);
 
     
-    cpu.init(grhandlr);
+    cpu.init();
     cout << "init functions ran" << endl;
 
     for(int i = 0; i < 8; i++) 
@@ -227,26 +204,42 @@ int main()
                 {
                     //cout << "quit";
                     running = false;
+                    break;
                 }
-
+                case SDL_KEYDOWN:
+                    if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) 
+                    {
+                        running = false;
+                    }
+                    for (int i = 0; i < 16; ++i) {
+                        if (event.key.keysym.scancode == keymap[i]) {
+                            cpu.keys[i] = 1;
+                        }
+                    }
+                    break;
+                case SDL_KEYUP:
+                    for (int i = 0; i < 16; ++i) {
+                        if (event.key.keysym.scancode == keymap[i]) {
+                            cpu.keys[i] = 0;
+                        }
+                    }
+                    break;
                 default:
                     //cout << "failure";
                 
-            }
-
-            emulator.clear_window();
-
-            buildTexture(emulator, cpu, grhandlr); //lol broken
-
-            
-
-            emulator.copy_render();
-            emulator.present_render();
-
-            this_thread::sleep_for(duration);
-
-                
+            }   
         }
+
+        emulator.clear_window();
+
+        buildTexture(emulator, cpu); //lol broken
+
+        SDL_Rect dest = {0, 0, 1024, 512};
+
+        emulator.copy_render();
+        emulator.present_render();
+
+        this_thread::sleep_for(duration);
     }
 
 
