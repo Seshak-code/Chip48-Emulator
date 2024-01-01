@@ -58,19 +58,25 @@ public:
         SDL_RenderClear(renderer);
     }
 
-    void copy_render()
-    {
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
-    }
-
     void present_render()
     {
         SDL_RenderPresent(renderer);
     }
 
+   
     SDL_Texture* getSDL_Texture ()
     {
         return texture;
+    }
+
+     SDL_Renderer* getSDL_Renderer ()
+    {
+        return renderer;
+    }
+
+     SDL_Window* getSDL_Window ()
+    {
+        return window;
     }
 
 private:
@@ -113,24 +119,24 @@ void buildTexture(Chip8Emulator &emulator, Chip8 &cpu)
 
         //cout << "is it locked in" << endl;
 
-        if(!(cpu.extendedScreenMode))
-        {
+        // if(!cpu.extendedScreenMode)
+        // {
             //cout << "chip8" << endl;
             for (size_t y = 0; y < 32; ++y) {  // Update for CHIP-8 resolution
                 for (size_t x = 0; x < 64; ++x) {  // Update for CHIP-8 resolution
                     bytes[y * 64 + x] = (cpu.graphics[y * 64 + x] == 1) ? 0xFFFFFFFF : 0x000000FF;
                 }
             }
-        }
-        else
-        {
-            cout << "chip48" << endl;
-            for (size_t y = 0; y < 64; ++y) {  // Update for Super CHIP-48 resolution
-                for (size_t x = 0; x < 128; ++x) {  // Update for Super CHIP-48 resolution
-                    bytes[y * 128 + x] = (cpu.graphics_extended[y * 128 + x] == 1) ? 0xFFFFFFFF : 0x000000FF;
-                }
-            }
-        }
+        // }
+        // else
+        // {
+        //     cout << "chip48" << endl;
+        //     for (size_t y = 0; y < 64; ++y) {  // Update for Super CHIP-48 resolution
+        //         for (size_t x = 0; x < 128; ++x) {  // Update for Super CHIP-48 resolution
+        //             bytes[y * 128 + x] = (cpu.graphics_extended[y * 128 + x] == 1) ? 0xFFFFFFFF : 0x000000FF;
+        //         }
+        //     }
+        // }
 
 
     SDL_UnlockTexture(emulator.getSDL_Texture());
@@ -234,9 +240,9 @@ int main()
 
         buildTexture(emulator, cpu); //lol broken
 
-        SDL_Rect dest = {0, 0, 1024, 512};
+        SDL_Rect dest = {0, 0, 640, 320};
 
-        emulator.copy_render();
+        SDL_RenderCopy(emulator.getSDL_Renderer(),emulator.getSDL_Texture() , nullptr, &dest);
         emulator.present_render();
 
         this_thread::sleep_for(duration);
